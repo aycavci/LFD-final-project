@@ -11,7 +11,7 @@ name_list = list()
 date_list = list()
 
 
-file_name = './COP_filt3_sub/COP24.filt3.sub.json'
+file_name = './COP_filt3_sub/COP25.filt3.sub.json'
 # JSON file
 f = open (file_name, "r")
 

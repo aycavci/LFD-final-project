@@ -167,10 +167,10 @@ if __name__ == "__main__":
     """ Below code refactored for the format python LFD_assignment2.py -i <trainset> -ts <testset>.
         Normally, it is used with split_data function to experiment with different classifiers. """
 
-    train = pd.read_csv('./processed_data/processed_train.csv', nrows=100)
-    val = pd.read_csv('./processed_data/processed_val.csv', nrows=10)
-    # test = pd.read_csv('./processed_data/processed_test.csv')
-    test = pd.read_csv('./processed_data/processed_custom_test.csv', nrows=10)
+    train = pd.read_csv('./processed_data/processed_train.csv')
+    val = pd.read_csv('./processed_data/processed_val.csv')
+    test = pd.read_csv('./processed_data/processed_test.csv')
+    # test = pd.read_csv('./processed_data/processed_custom_test.csv')
 
     X_train, Y_train = train['clean'], train['newspaper_name']
 

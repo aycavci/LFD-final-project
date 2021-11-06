@@ -160,8 +160,8 @@ def train(model, X_train, Y_train_bin, X_val, Y_dev_bin, epochs, batch_size):
 def main():
     args = create_arg_parser()
     set_seed(args.seed)
-    train_df = pd.read_csv('./processed_data/processed_train.csv', nrows=100)
-    val_df = pd.read_csv('./processed_data/processed_val.csv', nrows=10)
+    train_df = pd.read_csv('./processed_data/processed_train.csv')
+    val_df = pd.read_csv('./processed_data/processed_val.csv')
     # test_df = pd.read_csv('./processed_data/processed_test.csv')
     # test_df = pd.read_csv('./processed_data/processed_custom_test.csv')
 
