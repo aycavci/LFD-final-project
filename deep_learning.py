@@ -139,17 +139,18 @@ def lstm_model(input_shape, embedding_layer):
     return model
 
 
-def train(model, X_train, Y_train_bin, X_val, Y_dev_bin, epochs, batch_size):
+def train(model, X_train, Y_train_bin, X_val, Y_dev_bin, epochs, batch_size, filename):
     verbose = 1
     batch_size = batch_size
     epochs = epochs
     callback = tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', restore_best_weights='True', patience=6)
+    cp = tf.keras.callbacks.ModelCheckpoint(filename, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
     model.fit(X_train, Y_train_bin,
               verbose=verbose,
               batch_size=batch_size,
               epochs=epochs,
-              callbacks=[callback],
+              callbacks=[callback, cp],
               validation_data=(X_val, Y_dev_bin))
 
     test_set_predict(model, X_val, Y_dev_bin, "dev")
@@ -165,9 +166,17 @@ def main():
     # test_df = pd.read_csv('./processed_data/processed_test.csv')
     # test_df = pd.read_csv('./processed_data/processed_custom_test.csv')
 
-    X_train, Y_train = train_df['clean'], train_df['newspaper_name']
+    if args.lstm:
 
-    X_val, Y_val = val_df['clean'], val_df['newspaper_name']
+        X_train, Y_train = train_df['clean'], train_df['newspaper_name']
+
+        X_val, Y_val = val_df['clean'], val_df['newspaper_name']
+
+    else:
+        X_train, Y_train = train_df['body'], train_df['newspaper_name']
+
+        X_val, Y_val = val_df['body'], val_df['newspaper_name']
+
     encoder = LabelBinarizer()
     encode = encoder.fit(Y_train.tolist())
     Y_train_bin = encode.transform(Y_train.tolist())
@@ -175,9 +184,10 @@ def main():
     Y_dev_bin = encode.transform(Y_val.tolist())
 
     if args.lstm:
+        filename = "./model/lstm.h5"
         if args.lstm_pretrained:
-            with open('./model/lstm.pkl', 'rb') as file:
-                model = pickle.load(file)
+            with open(filename, 'rb') as file:
+                model = tf.keras.models.load_model(file)
             test_set_predict(model, X_val, Y_dev_bin, "dev")
         else:
             tokenizer = Tokenizer(num_words=5000)
@@ -198,23 +208,18 @@ def main():
 
             model = lstm_model(maxLen, embedding_layer)
             model = train(model, X_train_indices, Y_train_bin, X_val_indices, Y_dev_bin, args.epoch_size,
-                          args.batch_size)
+                          args.batch_size, filename)
 
-            filename = "./model/lstm.pkl"
-            with open(filename, 'wb') as file:
-                pickle.dump(model, file)
     else:
+        filename = "./model/bert.h5"
         if args.bert_pretrained:
-            with open('./model/bert.pkl', 'rb') as file:
-                model = pickle.load(file)
+            with open(filename, 'rb') as file:
+                model = tf.keras.models.load_model(file)
             test_set_predict(model, X_val, Y_dev_bin, "dev")
         else:
             model, tokenizer, tokens_train, tokens_dev = bert_model(X_train, X_val)
-            model = train(model, tokens_train, Y_train_bin, tokens_dev, Y_dev_bin, args.epoch_size, args.batch_size)
+            model = train(model, tokens_train, Y_train_bin, tokens_dev, Y_dev_bin, args.epoch_size, args.batch_size, filename)
 
-            filename = "./model/bert.pkl"
-            with open(filename, 'wb') as file:
-                pickle.dump(model, file)
 
 
 if __name__ == '__main__':
