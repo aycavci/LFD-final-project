@@ -24,37 +24,37 @@ def create_arg_parser():
     parser = argparse.ArgumentParser()
     # -cr flag to run the algorithm with custom features
     parser.add_argument("-cf", "--create_custom_features", action="store_true",
-                        help="Create custom feature matrix and train the svm model")
+                        help="Create custom feature matrix and train the SVM model")
     
     parser.add_argument("-ct", "--custom_test_set", action="store_true",
                         help="Use custom test set to test model")
 
     parser.add_argument("-val", "--val_set", action="store_true",
-                        help="Use val set to test model")
+                        help="Use val set to test model instead of processed test set")
 
     parser.add_argument("-t", "--tfidf", action="store_true",
                         help="Use the TF-IDF vectorizer instead of CountVectorizer")
 
     parser.add_argument("-nb", "--naive_bayes", action="store_true",
-                        help="Use Naive Bayes For Classification")
+                        help="Use Naive Bayes for classification")
 
     parser.add_argument("-rf", "--random_forest", action="store_true",
-                        help="Use Random Forest For Classification")
+                        help="Use Random Forest for classification")
 
     parser.add_argument("-dt", "--decision_tree", action="store_true",
-                        help="Use Decision Tree For Classification")
+                        help="Use Decision Tree for classification")
 
     parser.add_argument("-svm", "--svm", action="store_true",
-                        help="Use Naive Bayes For Classification")
+                        help="Use SVM for classification")
 
     parser.add_argument("-knn", "--knn", action="store_true",
-                        help="Use Naive Bayes For Classification")
+                        help="Use K-nearest Neighbors for classification")
 
     parser.add_argument("-en", "--ensemble", action="store_true",
-                        help="Use Ensemble For Classification")
+                        help="Use Ensemble for classification")
 
     parser.add_argument("-s", "--seed", default=42, type=int,
-                        help="Seed for model trainings (default 42)")
+                        help="Set the seed for model trainings (default 42)")
 
     parser.add_argument("-svm_pretrained", "--svm_pretrained", action="store_true",
                         help="Use pretrained SVM for classification")
@@ -70,12 +70,14 @@ def identity(x):
     """Dummy function that just returns the input"""
     return x
 
+
 def write_to_file(labels, output_file):
     '''Write list to file'''
     with open(output_file, "w") as out_f:
         for line in labels:
             out_f.write(line.strip() + '\n')
     out_f.close()
+
 
 def tokenizer(body):
     doc = nlp(body)

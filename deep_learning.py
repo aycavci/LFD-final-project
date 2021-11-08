@@ -36,16 +36,16 @@ def create_arg_parser():
                         help="Use custom test set to test model")
 
     parser.add_argument("-val", "--val_set", action="store_true",
-                        help="Use val set to test model")
+                        help="Use val set to test model instead of processed test set")
 
     parser.add_argument("-epoch", "--epoch_size", default=10, type=float,
                         help="Number of epochs to train")
 
     parser.add_argument("-batch", "--batch_size", default=16, type=float,
-                        help="Number of epochs to train")
+                        help="Batch size to train")
 
     parser.add_argument("-s", "--seed", default=42, type=int,
-                        help="Seed for model trainings (default 42)")
+                        help="Set seed for model trainings (default 42)")
 
     parser.add_argument("-bert_pretrained", "--bert_pretrained", action="store_true",
                         help="Use pretrained BERT for classification")
@@ -65,12 +65,14 @@ def set_seed(seed):
     tf.random.set_seed(seed)
     python_random.seed(seed)
 
+
 def write_to_file(labels, output_file):
     '''Write list to file'''
     with open(output_file, "w") as out_f:
         for line in labels:
             out_f.write(line.strip() + '\n')
     out_f.close()
+
 
 def test_set_predict(model, X_test, Y_test, ident, encoder, output_file):
     '''Do predictions and measure accuracy on our own test set (that we split off train)'''
