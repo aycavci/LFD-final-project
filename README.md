@@ -20,3 +20,23 @@
 
 ### To run the model using processed data by provided us:
 
+#### Running classic_model.py:
+
+classic_model.py takes the following arguments:
+
+    -cf -> Create custom feature matrix and train the SVM model
+    -ct -> Use custom test set to test model (COP25)
+    -val -> Use val set to test model instead of test set
+    -t -> Use the TF-IDF vectorizer instead of CountVectorizer
+    -nb -> Use Naive Bayes for classification
+    -rf -> Use Random Forest for classification
+    -dt -> Use Decision Tree for classification
+    -svm -> Use SVM for classification
+    -knn -> Use K-nearest Neighbors for classification
+    -en -> Use Ensemble for classification (combines Naive Bayes, Random Forest and SVM)
+    -s -> Set the seed for model trainings (default 42)
+    -svm_pretrained -> Use pretrained SVM for classification
+    -o -> Output a file to which we write predictions for test set
+    
+
+Example for running pretrained SVM using TF-IDF on custom test set (COP25) with seed=36, and output results to a file: python classic_model.py -svm_pretrained -t -ct - o -s 36 
