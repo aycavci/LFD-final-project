@@ -32,6 +32,12 @@ def create_arg_parser():
     parser.add_argument("-lstm", "--lstm", action="store_true",
                         help="Use the LSTM for classification")
 
+    parser.add_argument("-ct", "--custom_test_set", action="store_true",
+                        help="Use custom test set to test model")
+
+    parser.add_argument("-val", "--val_set", action="store_true",
+                        help="Use val set to test model")
+
     parser.add_argument("-epoch", "--epoch_size", default=10, type=float,
                         help="Number of epochs to train")
 
@@ -139,7 +145,7 @@ def lstm_model(input_shape, embedding_layer):
     return model
 
 
-def train(model, X_train, Y_train_bin, X_val, Y_dev_bin, epochs, batch_size, filename):
+def train(model, X_train, Y_train_bin, X_test, Y_test_bin, epochs, batch_size, filename, custom_test_set, val_set):
     verbose = 1
     batch_size = batch_size
     epochs = epochs
@@ -151,9 +157,15 @@ def train(model, X_train, Y_train_bin, X_val, Y_dev_bin, epochs, batch_size, fil
               batch_size=batch_size,
               epochs=epochs,
               callbacks=[callback, cp],
-              validation_data=(X_val, Y_dev_bin))
+              validation_data=(X_test, Y_test_bin))
 
-    test_set_predict(model, X_val, Y_dev_bin, "dev")
+    if custom_test_set:
+        test_set_predict(model, X_test, Y_test_bin, "custom_test")
+    else:
+        if val_set:
+            test_set_predict(model, X_test, Y_test_bin, "val")
+        else:
+            test_set_predict(model, X_test, Y_test_bin, "test")
 
     return model
 
@@ -161,34 +173,42 @@ def train(model, X_train, Y_train_bin, X_val, Y_dev_bin, epochs, batch_size, fil
 def main():
     args = create_arg_parser()
     set_seed(args.seed)
+
     train_df = pd.read_csv('./processed_data/processed_train.csv')
-    val_df = pd.read_csv('./processed_data/processed_val.csv')
-    # test_df = pd.read_csv('./processed_data/processed_test.csv')
-    # test_df = pd.read_csv('./processed_data/processed_custom_test.csv')
+
+    if args.custom_test_set:
+        test_df = pd.read_csv('./processed_data/processed_custom_test.csv')
+    else:
+        if args.val_set:
+            test_df = pd.read_csv('./processed_data/processed_val.csv')
+        else:
+            test_df = pd.read_csv('./processed_data/processed_test.csv')
 
     if args.lstm:
-
         X_train, Y_train = train_df['clean'], train_df['newspaper_name']
-
-        X_val, Y_val = val_df['clean'], val_df['newspaper_name']
-
+        X_test, Y_test = test_df['clean'], test_df['newspaper_name']
     else:
         X_train, Y_train = train_df['body'], train_df['newspaper_name']
-
-        X_val, Y_val = val_df['body'], val_df['newspaper_name']
+        X_test, Y_test = test_df['body'], test_df['newspaper_name']
 
     encoder = LabelBinarizer()
     encode = encoder.fit(Y_train.tolist())
     Y_train_bin = encode.transform(Y_train.tolist())
     # Use encoder.classes_ to find mapping back
-    Y_dev_bin = encode.transform(Y_val.tolist())
+    Y_test_bin = encode.transform(Y_test.tolist())
 
     if args.lstm:
         filename = "./model/lstm.h5"
         if args.lstm_pretrained:
             with open(filename, 'rb') as file:
                 model = tf.keras.models.load_model(file)
-            test_set_predict(model, X_val, Y_dev_bin, "dev")
+            if args.custom_test_set:
+                test_set_predict(model, X_test, Y_test_bin, "custom_test")
+            else:
+                if args.val_set:
+                    test_set_predict(model, X_test, Y_test_bin, "val")
+                else:
+                    test_set_predict(model, X_test, Y_test_bin, "test")
         else:
             tokenizer = Tokenizer(num_words=5000)
             tokenizer.fit_on_texts(X_train)
@@ -203,24 +223,28 @@ def main():
             X_train_indices = tokenizer.texts_to_sequences(X_train)
             X_train_indices = pad_sequences(X_train_indices, maxlen=maxLen, padding='post')
 
-            X_val_indices = tokenizer.texts_to_sequences(X_val)
-            X_val_indices = pad_sequences(X_val_indices, maxlen=maxLen, padding='post')
+            X_test_indices = tokenizer.texts_to_sequences(X_test)
+            X_test_indices = pad_sequences(X_test_indices, maxlen=maxLen, padding='post')
 
             model = lstm_model(maxLen, embedding_layer)
-            model = train(model, X_train_indices, Y_train_bin, X_val_indices, Y_dev_bin, args.epoch_size,
-                          args.batch_size, filename)
-
+            model = train(model, X_train_indices, Y_train_bin, X_test_indices, Y_test_bin, args.epoch_size,
+                          args.batch_size, filename, args.custom_test_set, args.val_set)
     else:
         filename = "./model/bert.h5"
         if args.bert_pretrained:
             with open(filename, 'rb') as file:
                 model = tf.keras.models.load_model(file)
-            test_set_predict(model, X_val, Y_dev_bin, "dev")
+            if custom_test_set:
+                test_set_predict(model, X_test, Y_test_bin, "custom_test")
+            else:
+                if val_set:
+                    test_set_predict(model, X_test, Y_test_bin, "val")
+                else:
+                    test_set_predict(model, X_test, Y_test_bin, "test")
         else:
-            model, tokenizer, tokens_train, tokens_dev = bert_model(X_train, X_val)
-            model = train(model, tokens_train, Y_train_bin, tokens_dev, Y_dev_bin, args.epoch_size, args.batch_size, filename)
+            model, tokenizer, tokens_train, tokens_test = bert_model(X_train, X_test)
+            model = train(model, tokens_train, Y_train_bin, tokens_test, Y_test_bin, args.epoch_size, args.batch_size, filename, args.custom_test_set, args.val_set)
 
-
-
+            
 if __name__ == '__main__':
     main()
