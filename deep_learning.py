@@ -36,16 +36,16 @@ def create_arg_parser():
                         help="Use custom test set to test model")
 
     parser.add_argument("-val", "--val_set", action="store_true",
-                        help="Use val set to test model instead of processed test set")
+                        help="Use val set to test model")
 
-    parser.add_argument("-epoch", "--epoch_size", default=10, type=float,
+    parser.add_argument("-epoch", "--epoch_size", default=10, type=int,
                         help="Number of epochs to train")
 
-    parser.add_argument("-batch", "--batch_size", default=16, type=float,
-                        help="Batch size to train")
+    parser.add_argument("-batch", "--batch_size", default=16, type=int,
+                        help="Number of epochs to train")
 
     parser.add_argument("-s", "--seed", default=42, type=int,
-                        help="Set seed for model trainings (default 42)")
+                        help="Seed for model trainings (default 42)")
 
     parser.add_argument("-bert_pretrained", "--bert_pretrained", action="store_true",
                         help="Use pretrained BERT for classification")
@@ -65,7 +65,6 @@ def set_seed(seed):
     tf.random.set_seed(seed)
     python_random.seed(seed)
 
-
 def write_to_file(labels, output_file):
     '''Write list to file'''
     with open(output_file, "w") as out_f:
@@ -73,13 +72,17 @@ def write_to_file(labels, output_file):
             out_f.write(line.strip() + '\n')
     out_f.close()
 
-
-def test_set_predict(model, X_test, Y_test, ident, encoder, output_file):
+def test_set_predict(model, X_test, Y_test, ident, encoder, output_file, lstm):
     '''Do predictions and measure accuracy on our own test set (that we split off train)'''
     # Get predictions using the trained model
-    Y_pred = model.predict(X_test)
+    if lstm:
+        Y_pred = model.predict(X_test)
+    else:
+        Y_pred = model.predict(X_test)["logits"]
+    
     # Finally, convert to numerical labels to get scores with sklearn
     Y_pred = np.argmax(Y_pred, axis=1)
+
     # If you have gold data, you can calculate accuracy
     Y_test = np.argmax(Y_test, axis=1)
 
@@ -110,11 +113,11 @@ def read_glove_vector(glove_vec):
 
 
 def bert_model(X_train, X_dev):
-    lm = "bert-base-uncased"
+    lm = "roberta-base"
     optim = Adam(learning_rate=5e-5)
     loss_function = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-    tokenizer = BertTokenizerFast.from_pretrained(lm)
-    model = TFBertForSequenceClassification.from_pretrained(lm, num_labels=9)
+    tokenizer = RobertaTokenizer.from_pretrained(lm)
+    model = TFRobertaForSequenceClassification.from_pretrained(lm, num_labels=9)
     tokenizer.pad_token = "[PAD]"
     tokens_train = tokenizer(X_train.values.tolist(), padding=True, max_length=256, truncation=True,
                              return_tensors="np").data
@@ -166,27 +169,26 @@ def lstm_model(input_shape, embedding_layer):
     return model
 
 
-def train(model, X_train, Y_train_bin, X_test, Y_test_bin, epochs, batch_size, filename, custom_test_set, val_set, encoder, output_file):
+def train(model, X_train, Y_train_bin, X_test, Y_test_bin, epochs, batch_size, filename, custom_test_set, val_set, encoder, output_file, lstm):
     verbose = 1
     batch_size = batch_size
     epochs = epochs
     callback = tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', restore_best_weights='True', patience=6)
-    cp = tf.keras.callbacks.ModelCheckpoint(filename, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
     model.fit(X_train, Y_train_bin,
               verbose=verbose,
               batch_size=batch_size,
               epochs=epochs,
-              callbacks=[callback, cp],
+              callbacks=[callback],
               validation_data=(X_test, Y_test_bin))
 
     if custom_test_set:
-        test_set_predict(model, X_test, Y_test_bin, "custom_test", encoder, output_file)
+        test_set_predict(model, X_test, Y_test_bin, "custom_test", encoder, output_file, lstm)
     else:
         if val_set:
-            test_set_predict(model, X_test, Y_test_bin, "val", encoder, output_file)
+            test_set_predict(model, X_test, Y_test_bin, "val", encoder, output_file, lstm)
         else:
-            test_set_predict(model, X_test, Y_test_bin, "test", encoder, output_file)
+            test_set_predict(model, X_test, Y_test_bin, "test", encoder, output_file, lstm)
 
     return model
 
@@ -219,7 +221,7 @@ def main():
     Y_test_bin = encoder.transform(Y_test.tolist())
 
     if args.lstm or args.lstm_pretrained:
-        filename = "./model/lstm.h5"
+        filename = "./model/lstm"
         tokenizer = Tokenizer(num_words=5000)
         tokenizer.fit_on_texts(X_train)
 
@@ -239,31 +241,38 @@ def main():
         if args.lstm_pretrained:
             model = tf.keras.models.load_model(filename)
             if args.custom_test_set:
-                test_set_predict(model, X_test_indices, Y_test_bin, "custom_test", encoder, args.output_file)
+                test_set_predict(model, X_test_indices, Y_test_bin, "custom_test", encoder, args.output_file, args.lstm_pretrained)
             else:
                 if args.val_set:
-                    test_set_predict(model, X_test_indices, Y_test_bin, "val", encoder, args.output_file)
+                    test_set_predict(model, X_test_indices, Y_test_bin, "val", encoder, args.output_file, args.lstm_pretrained)
                 else:
-                    test_set_predict(model, X_test_indices, Y_test_bin, "test", encoder, args.output_file)
+                    test_set_predict(model, X_test_indices, Y_test_bin, "test", encoder, args.output_file, args.lstm_pretrained)
         else:
             model = lstm_model(maxLen, embedding_layer)
             model = train(model, X_train_indices, Y_train_bin, X_test_indices, Y_test_bin, args.epoch_size,
-                          args.batch_size, filename, args.custom_test_set, args.val_set, encoder, args.output_file)
+                          args.batch_size, filename, args.custom_test_set, args.val_set, encoder, args.output_file, args.lstm)
+
+            model.save(filename)
     else:
-        filename = "./model/bert.h5"
+        filename = "./model/bert"
         if args.bert_pretrained:
-            model = tf.keras.models.load_model(filename)
+            model = TFRobertaForSequenceClassification.from_pretrained(filename, local_files_only=True)
+            tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+            tokenizer.pad_token = "[PAD]"
+            tokens_dev = tokenizer(X_test.values.tolist(), padding=True, max_length=256, truncation=True,
+                           return_tensors="np").data
             if args.custom_test_set:
-                test_set_predict(model, X_test, Y_test_bin, "custom_test", encoder, args.output_file)
+                test_set_predict(model, tokens_dev, Y_test_bin, "custom_test", encoder, args.output_file, args.lstm)
             else:
                 if args.val_set:
-                    test_set_predict(model, X_test, Y_test_bin, "val", encoder, args.output_file)
+                    test_set_predict(model, tokens_dev, Y_test_bin, "val", encoder, args.output_file, args.lstm)
                 else:
-                    test_set_predict(model, X_test, Y_test_bin, "test", encoder, args.output_file)
+                    test_set_predict(model, tokens_dev, Y_test_bin, "test", encoder, args.output_file, args.lstm)
         else:
             model, tokenizer, tokens_train, tokens_test = bert_model(X_train, X_test)
             model = train(model, tokens_train, Y_train_bin, tokens_test, Y_test_bin, args.epoch_size, 
-                          args.batch_size, filename, args.custom_test_set, args.val_set, encoder, args.output_file)
+                          args.batch_size, filename, args.custom_test_set, args.val_set, encoder, args.output_file, args.lstm)
+            model.save_pretrained(filename)
 
             
 if __name__ == '__main__':
