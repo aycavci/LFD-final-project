@@ -58,6 +58,9 @@ def create_arg_parser():
 
     parser.add_argument("-svm_pretrained", "--svm_pretrained", action="store_true",
                         help="Use pretrained SVM for classification")
+                        
+    parser.add_argument("-o", "--output_file", type=str,
+                    help="Output file to which we write predictions for test set")
 
     args = parser.parse_args()
     return args
@@ -67,6 +70,12 @@ def identity(x):
     """Dummy function that just returns the input"""
     return x
 
+def write_to_file(labels, output_file):
+    '''Write list to file'''
+    with open(output_file, "w") as out_f:
+        for line in labels:
+            out_f.write(line.strip() + '\n')
+    out_f.close()
 
 def tokenizer(body):
     doc = nlp(body)
@@ -74,11 +83,13 @@ def tokenizer(body):
     return tokens
 
 
-def get_score(classifier, X_test, Y_test):
+def get_score(classifier, X_test, Y_test, output_file):
     # Given a trained model, predict the label of a new set of data.
     Y_pred = classifier.predict(X_test)
     # Calculates the accuracy score of the trained model by comparing predicted labels with actual labels.
     acc = accuracy_score(Y_test, Y_pred)
+    if output_file:
+        write_to_file(Y_pred, output_file)
     print(classification_report(Y_test, Y_pred))
 
     return acc
@@ -195,7 +206,7 @@ if __name__ == "__main__":
         dic_train_matr = DictVectorizer().fit_transform(train_dic)
         dic_test_matr = DictVectorizer().fit_transform(test_dic)
 
-        # Applying Bag-of-words on text
+        # Applying TF-IDF on text
         vec = TfidfVectorizer().fit(train['clean'])
 
         train_word_matr = vec.transform(train['clean'])
@@ -206,12 +217,9 @@ if __name__ == "__main__":
 
         classifier = optimize_svm(None, train_matr, Y_train, args.seed)
 
-        filename = "./model/svm.pkl"
-        with open(filename, 'wb') as file:
-            pickle.dump(classifier, file)
-
-        acc = get_score(classifier, test_matr, Y_test)
+        acc = get_score(classifier, test_matr, Y_test, args.output_file)
         print("\n Accuracy: {}".format(acc))
+
     else:
         if args.tfidf:
             vec = TfidfVectorizer(tokenizer=tokenizer, preprocess=identity)
@@ -239,5 +247,5 @@ if __name__ == "__main__":
                 with open(filename, 'wb') as file:
                     pickle.dump(classifier, file)
 
-        acc = get_score(classifier, test_matr, Y_test)
+        acc = get_score(classifier, X_test, Y_test, args.output_file)
         print("\n Accuracy: {}".format(acc))

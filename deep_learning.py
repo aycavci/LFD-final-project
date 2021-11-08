@@ -13,7 +13,7 @@ from keras.preprocessing.text import Tokenizer
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.layers import BatchNormalization
 from sklearn.preprocessing import LabelBinarizer
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 from keras.preprocessing.sequence import pad_sequences
 import transformers
 from transformers import (OpenAIGPTTokenizer, TFOpenAIGPTForSequenceClassification, MobileBertTokenizer,
@@ -53,6 +53,9 @@ def create_arg_parser():
     parser.add_argument("-lstm_pretrained", "--lstm_pretrained", action="store_true",
                         help="Use pretrained LSTM for classification")
 
+    parser.add_argument("-o", "--output_file", type=str,
+                    help="Output file to which we write predictions for test set")
+
     args = parser.parse_args()
     return args
 
@@ -62,8 +65,14 @@ def set_seed(seed):
     tf.random.set_seed(seed)
     python_random.seed(seed)
 
+def write_to_file(labels, output_file):
+    '''Write list to file'''
+    with open(output_file, "w") as out_f:
+        for line in labels:
+            out_f.write(line.strip() + '\n')
+    out_f.close()
 
-def test_set_predict(model, X_test, Y_test, ident):
+def test_set_predict(model, X_test, Y_test, ident, encoder, output_file):
     '''Do predictions and measure accuracy on our own test set (that we split off train)'''
     # Get predictions using the trained model
     Y_pred = model.predict(X_test)
@@ -71,6 +80,16 @@ def test_set_predict(model, X_test, Y_test, ident):
     Y_pred = np.argmax(Y_pred, axis=1)
     # If you have gold data, you can calculate accuracy
     Y_test = np.argmax(Y_test, axis=1)
+
+    labels = [encoder.classes_[idx] for idx in Y_pred]
+
+    if output_file:
+        # Finally write predictions to file
+        write_to_file(labels, output_file)
+
+    print(classification_report(Y_test, Y_pred, target_names = ['Mail & Guardian', 'Sydney Morning Herald (Australia)', 'The Age (Melbourne, Australia)', 
+                                                                'The Australian', 'The Hindu', 'The New York Times', 'The Times (South Africa)',
+                                                                'The Times of India (TOI)', 'The Washington Post']))
 
     print('Accuracy on {1} set: {0}'.format(round(accuracy_score(Y_test, Y_pred), 3), ident))
 
@@ -145,7 +164,7 @@ def lstm_model(input_shape, embedding_layer):
     return model
 
 
-def train(model, X_train, Y_train_bin, X_test, Y_test_bin, epochs, batch_size, filename, custom_test_set, val_set):
+def train(model, X_train, Y_train_bin, X_test, Y_test_bin, epochs, batch_size, filename, custom_test_set, val_set, encoder, output_file):
     verbose = 1
     batch_size = batch_size
     epochs = epochs
@@ -160,12 +179,12 @@ def train(model, X_train, Y_train_bin, X_test, Y_test_bin, epochs, batch_size, f
               validation_data=(X_test, Y_test_bin))
 
     if custom_test_set:
-        test_set_predict(model, X_test, Y_test_bin, "custom_test")
+        test_set_predict(model, X_test, Y_test_bin, "custom_test", encoder, output_file)
     else:
         if val_set:
-            test_set_predict(model, X_test, Y_test_bin, "val")
+            test_set_predict(model, X_test, Y_test_bin, "val", encoder, output_file)
         else:
-            test_set_predict(model, X_test, Y_test_bin, "test")
+            test_set_predict(model, X_test, Y_test_bin, "test", encoder, output_file)
 
     return model
 
@@ -184,7 +203,7 @@ def main():
         else:
             test_df = pd.read_csv('./processed_data/processed_test.csv')
 
-    if args.lstm:
+    if args.lstm or args.lstm_pretrained:
         X_train, Y_train = train_df['clean'], train_df['newspaper_name']
         X_test, Y_test = test_df['clean'], test_df['newspaper_name']
     else:
@@ -192,58 +211,57 @@ def main():
         X_test, Y_test = test_df['body'], test_df['newspaper_name']
 
     encoder = LabelBinarizer()
-    encode = encoder.fit(Y_train.tolist())
-    Y_train_bin = encode.transform(Y_train.tolist())
+    encoder = encoder.fit(Y_train.tolist())
+    Y_train_bin = encoder.transform(Y_train.tolist())
     # Use encoder.classes_ to find mapping back
-    Y_test_bin = encode.transform(Y_test.tolist())
+    Y_test_bin = encoder.transform(Y_test.tolist())
 
-    if args.lstm:
+    if args.lstm or args.lstm_pretrained:
         filename = "./model/lstm.h5"
+        tokenizer = Tokenizer(num_words=5000)
+        tokenizer.fit_on_texts(X_train)
+
+        words_to_index = tokenizer.word_index
+        word_to_vec_map = read_glove_vector('glove.6B.50d.txt')
+
+        maxLen = 300
+
+        embedding_layer = emb_matrix(word_to_vec_map, words_to_index, maxLen)
+
+        X_train_indices = tokenizer.texts_to_sequences(X_train)
+        X_train_indices = pad_sequences(X_train_indices, maxlen=maxLen, padding='post')
+
+        X_test_indices = tokenizer.texts_to_sequences(X_test)
+        X_test_indices = pad_sequences(X_test_indices, maxlen=maxLen, padding='post')
+
         if args.lstm_pretrained:
-            with open(filename, 'rb') as file:
-                model = tf.keras.models.load_model(file)
+            model = tf.keras.models.load_model(filename)
             if args.custom_test_set:
-                test_set_predict(model, X_test, Y_test_bin, "custom_test")
+                test_set_predict(model, X_test_indices, Y_test_bin, "custom_test", encoder, args.output_file)
             else:
                 if args.val_set:
-                    test_set_predict(model, X_test, Y_test_bin, "val")
+                    test_set_predict(model, X_test_indices, Y_test_bin, "val", encoder, args.output_file)
                 else:
-                    test_set_predict(model, X_test, Y_test_bin, "test")
+                    test_set_predict(model, X_test_indices, Y_test_bin, "test", encoder, args.output_file)
         else:
-            tokenizer = Tokenizer(num_words=5000)
-            tokenizer.fit_on_texts(X_train)
-
-            words_to_index = tokenizer.word_index
-            word_to_vec_map = read_glove_vector('glove.6B.50d.txt')
-
-            maxLen = 300
-
-            embedding_layer = emb_matrix(word_to_vec_map, words_to_index, maxLen)
-
-            X_train_indices = tokenizer.texts_to_sequences(X_train)
-            X_train_indices = pad_sequences(X_train_indices, maxlen=maxLen, padding='post')
-
-            X_test_indices = tokenizer.texts_to_sequences(X_test)
-            X_test_indices = pad_sequences(X_test_indices, maxlen=maxLen, padding='post')
-
             model = lstm_model(maxLen, embedding_layer)
             model = train(model, X_train_indices, Y_train_bin, X_test_indices, Y_test_bin, args.epoch_size,
-                          args.batch_size, filename, args.custom_test_set, args.val_set)
+                          args.batch_size, filename, args.custom_test_set, args.val_set, encoder, args.output_file)
     else:
         filename = "./model/bert.h5"
         if args.bert_pretrained:
-            with open(filename, 'rb') as file:
-                model = tf.keras.models.load_model(file)
-            if custom_test_set:
-                test_set_predict(model, X_test, Y_test_bin, "custom_test")
+            model = tf.keras.models.load_model(filename)
+            if args.custom_test_set:
+                test_set_predict(model, X_test, Y_test_bin, "custom_test", encoder, args.output_file)
             else:
-                if val_set:
-                    test_set_predict(model, X_test, Y_test_bin, "val")
+                if args.val_set:
+                    test_set_predict(model, X_test, Y_test_bin, "val", encoder, args.output_file)
                 else:
-                    test_set_predict(model, X_test, Y_test_bin, "test")
+                    test_set_predict(model, X_test, Y_test_bin, "test", encoder, args.output_file)
         else:
             model, tokenizer, tokens_train, tokens_test = bert_model(X_train, X_test)
-            model = train(model, tokens_train, Y_train_bin, tokens_test, Y_test_bin, args.epoch_size, args.batch_size, filename, args.custom_test_set, args.val_set)
+            model = train(model, tokens_train, Y_train_bin, tokens_test, Y_test_bin, args.epoch_size, 
+                          args.batch_size, filename, args.custom_test_set, args.val_set, encoder, args.output_file)
 
             
 if __name__ == '__main__':
