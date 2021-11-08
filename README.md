@@ -2,18 +2,18 @@
 
 ## To setup the repository:
 
-1) Clone the github repository
+1) Clone the Github repository.
 
-2) Go inside the folder and setup the virtual environment
+2) Go inside the repository folder, and setup the virtual environment.
     - pip install virtualenv
     - virtualenv venv
     - source virtualenv/Scripts/activate
 
-3) Then install the requirements
+3) Then install the requirements.
     - pip install -r requirements.txt
 
-4) Go to the Drive folder that is shared and copy files inside the folders to the corresponding folders in the github repository
-5) To COP_filt3_sub in the repository, copy all the COP files in the format of that is downloaded from the link that you provided, including COP25 to test the model
+4) Go to the Google Drive folder that is shared with you, and copy files inside the folders to the corresponding folders in the Github repository.
+5) To COP_filt3_sub in the repository, copy all the COP files in the format of that is downloaded from the link that you provided, including COP25 to test models.
 
 
 ## Running the models:
@@ -39,7 +39,7 @@ classic_model.py takes the following arguments:
     -o -> Output file to which we write predictions for test set
     
 
-Example for running pretrained SVM using TF-IDF on custom test set (COP25) with seed=36, and output results to a file: python classic_model.py -svm_pretrained -t -ct - o -s 36
+Example for running pretrained SVM using TF-IDF on processed test set with seed=36, and output results to a file: python classic_model.py -svm_pretrained -t - o -s 36
 
 #### Running deep_learning.py:
 
@@ -57,3 +57,9 @@ deep_learning.py takes the following arguments:
    
 Example for running pretrained BERT on val set with epoch=100 and batch_size=32: python deep_learning.py -bert_pretrained -val -epoch 100 -batch 32
 
+### To run the model using custom test set (COP25):
+
+1) python read_custom_test.py
+2) python custom_test_preprocessing.py
+
+Then, you can run either classic_model.py or deep_learning.py by passing the -ct argument. See the ""Running classic_model.py" and "Running deep_learning.py" for other argumnets that you might want to pass.
