@@ -13,7 +13,7 @@
     - pip install -r requirements.txt
 
 4) Go to the Google Drive folder that is shared with you, and copy files inside the folders to the corresponding folders in the Github repository.
-5) To COP_filt3_sub in the repository, copy all the COP files in the format of that is downloaded from the link that you provided, including COP25 to test models.
+5) To COP_filt3_sub in the repository, copy all the COP files in the format of that is downloaded from the link that you provided, including COP25 file named as "COP25.filt3.sub" to test models.
 
 
 ## Running the models:
