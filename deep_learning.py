@@ -28,31 +28,37 @@ warnings.filterwarnings("ignore")
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
-
+    """ Below argument is used for using LSTM """
     parser.add_argument("-lstm", "--lstm", action="store_true",
                         help="Use the LSTM for classification")
-
+    
+    """ Below argument is used for using Custom Test Set """
     parser.add_argument("-ct", "--custom_test_set", action="store_true",
                         help="Use custom test set to test model")
 
     parser.add_argument("-val", "--val_set", action="store_true",
                         help="Use val set to test model")
-
+    
+    """ Below argument is used for giving number Epoch """
     parser.add_argument("-epoch", "--epoch_size", default=10, type=int,
                         help="Number of epochs to train")
-
+    
+    """ Below argument is used for Number of Batch Size """
     parser.add_argument("-batch", "--batch_size", default=16, type=int,
                         help="Number of epochs to train")
 
     parser.add_argument("-s", "--seed", default=42, type=int,
                         help="Seed for model trainings (default 42)")
-
+    
+    """ Below argument is used for using Pretrained BERT Model """
     parser.add_argument("-bert_pretrained", "--bert_pretrained", action="store_true",
                         help="Use pretrained BERT for classification")
-
+    
+    """ Below argument is used for using Pretrained LSTM Model """
     parser.add_argument("-lstm_pretrained", "--lstm_pretrained", action="store_true",
                         help="Use pretrained LSTM for classification")
-
+    
+    """ Below argument is used for creating output file of prediction """
     parser.add_argument("-o", "--output_file", type=str,
                     help="Output file to which we write predictions for test set")
 
@@ -102,6 +108,7 @@ def test_set_predict(model, X_test, Y_test, ident, encoder, output_file, lstm):
 
 
 def read_glove_vector(glove_vec):
+  '''Read in word embeddings from file and save as numpy array'''
     embeddings_index = {}
     with open(glove_vec, 'r', encoding='UTF-8') as f:
         for line in f:
@@ -114,7 +121,27 @@ def read_glove_vector(glove_vec):
     return embeddings_index
 
 
-def bert_model(X_train, X_dev):
+
+
+def emb_matrix(word_to_vec_map, words_to_index, maxLen):
+  '''Get embedding matrix given vocab and the embeddings'''
+    vocab_len = len(words_to_index)
+    embed_vector_len = word_to_vec_map['moon'].shape[0]
+
+    emb_matrix = np.zeros((vocab_len, embed_vector_len))
+
+    for word, index in words_to_index.items():
+        embedding_vector = word_to_vec_map.get(word)
+        if embedding_vector is not None:
+            emb_matrix[index, :] = embedding_vector
+
+    embedding_layer = Embedding(input_dim=vocab_len, output_dim=embed_vector_len, input_length=maxLen,
+                                weights=[emb_matrix], trainable=False)
+
+    return embedding_layer
+  
+ def bert_model(X_train, X_dev):
+  '''Create BERT Model'''
     lm = "roberta-base"
     optim = Adam(learning_rate=5e-5)
     loss_function = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
@@ -130,24 +157,8 @@ def bert_model(X_train, X_dev):
     return model, tokenizer, tokens_train, tokens_dev
 
 
-def emb_matrix(word_to_vec_map, words_to_index, maxLen):
-    vocab_len = len(words_to_index)
-    embed_vector_len = word_to_vec_map['moon'].shape[0]
-
-    emb_matrix = np.zeros((vocab_len, embed_vector_len))
-
-    for word, index in words_to_index.items():
-        embedding_vector = word_to_vec_map.get(word)
-        if embedding_vector is not None:
-            emb_matrix[index, :] = embedding_vector
-
-    embedding_layer = Embedding(input_dim=vocab_len, output_dim=embed_vector_len, input_length=maxLen,
-                                weights=[emb_matrix], trainable=False)
-
-    return embedding_layer
-
-
 def lstm_model(input_shape, embedding_layer):
+  '''Create LSTM Model'''
     adam = Adam(learning_rate=0.0005)
 
     X_indices = Input(input_shape)
@@ -172,6 +183,7 @@ def lstm_model(input_shape, embedding_layer):
 
 
 def train(model, X_train, Y_train_bin, X_test, Y_test_bin, epochs, batch_size, filename, custom_test_set, val_set, encoder, output_file, lstm):
+  '''Train the model here. Note the different settings'''
     verbose = 1
     batch_size = batch_size
     epochs = epochs
@@ -215,7 +227,8 @@ def main():
     else:
         X_train, Y_train = train_df['body'], train_df['newspaper_name']
         X_test, Y_test = test_df['body'], test_df['newspaper_name']
-
+        
+    # Transform string labels to one-hot encodings
     encoder = LabelBinarizer()
     encoder = encoder.fit(Y_train.tolist())
     Y_train_bin = encoder.transform(Y_train.tolist())
@@ -228,6 +241,7 @@ def main():
         tokenizer.fit_on_texts(X_train)
 
         words_to_index = tokenizer.word_index
+        #Loading Pre-trained Glove Vector
         word_to_vec_map = read_glove_vector('glove.6B.50d.txt')
 
         maxLen = 300
@@ -251,6 +265,7 @@ def main():
                     test_set_predict(model, X_test_indices, Y_test_bin, "test", encoder, args.output_file, args.lstm_pretrained)
         else:
             model = lstm_model(maxLen, embedding_layer)
+            #Train Model
             model = train(model, X_train_indices, Y_train_bin, X_test_indices, Y_test_bin, args.epoch_size,
                           args.batch_size, filename, args.custom_test_set, args.val_set, encoder, args.output_file, args.lstm)
 
