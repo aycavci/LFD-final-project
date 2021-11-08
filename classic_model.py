@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
     else:
         if args.tfidf:
-            vec = TfidfVectorizer(tokenizer=tokenizer, preprocess=identity)
+            vec = TfidfVectorizer(tokenizer=tokenizer, preprocessor=identity)
         else:
             """ Bag of Words vectorizer """
             vec = CountVectorizer(tokenizer=tokenizer, ngram_range=(1, 1), min_df=3)
