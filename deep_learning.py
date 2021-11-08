@@ -65,12 +65,14 @@ def set_seed(seed):
     tf.random.set_seed(seed)
     python_random.seed(seed)
 
+
 def write_to_file(labels, output_file):
     '''Write list to file'''
     with open(output_file, "w") as out_f:
         for line in labels:
             out_f.write(line.strip() + '\n')
     out_f.close()
+
 
 def test_set_predict(model, X_test, Y_test, ident, encoder, output_file, lstm):
     '''Do predictions and measure accuracy on our own test set (that we split off train)'''
