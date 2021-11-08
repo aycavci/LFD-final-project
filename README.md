@@ -16,5 +16,7 @@
 5) To COP_filt3_sub in the repository, copy all the COP files in the format of that is downloaded from the link that you provided, including COP25 to test the model
 
 
-## Running the models
+## Running the models:
+
+### To run the model using processed data by provided us:
 
