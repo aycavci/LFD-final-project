@@ -10,8 +10,6 @@ from sklearn.metrics import accuracy_score, classification_report
 import pandas as pd
 import numpy as np
 import spacy
-
-nlp = spacy.load("en_core_web_sm")
 import argparse
 import scipy.sparse as sp
 import pickle
@@ -19,6 +17,8 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+# Loading Spacy Library
+nlp = spacy.load("en_core_web_sm")
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -67,7 +67,7 @@ def create_arg_parser():
 
 
 def identity(x):
-    """Dummy function that just returns the input"""
+    '''Dummy function that just returns the input'''
     return x
 
 
@@ -80,6 +80,7 @@ def write_to_file(labels, output_file):
 
 
 def tokenizer(body):
+    '''Perform tokenization'''
     doc = nlp(body)
     tokens = [word.text for word in doc]
     return tokens
@@ -88,7 +89,7 @@ def tokenizer(body):
 def get_score(classifier, X_test, Y_test, output_file):
     # Given a trained model, predict the label of a new set of data.
     Y_pred = classifier.predict(X_test)
-    # Calculates the accuracy score of the trained model by comparing predicted labels with actual labels.
+    # Calculate the accuracy score of the trained model by comparing predicted labels with actual labels.
     acc = accuracy_score(Y_test, Y_pred)
     if output_file:
         write_to_file(Y_pred, output_file)
@@ -98,6 +99,7 @@ def get_score(classifier, X_test, Y_test, output_file):
 
 
 def base_model(vec, X_train, Y_train):
+    '''Train Naive Bayes Model'''
     print("Navie Bayes Classification")
     model = MultinomialNB()
 
@@ -108,6 +110,7 @@ def base_model(vec, X_train, Y_train):
 
 
 def optimize_rf(vec, X_train, Y_train, seed):
+    '''Train Random Forest Model'''
     print("Random Forest Classification")
     model = RandomForestClassifier(criterion='gini', n_estimators=233, max_depth=10, max_features=0.064,
                                    random_state=seed)
@@ -119,6 +122,7 @@ def optimize_rf(vec, X_train, Y_train, seed):
 
 
 def optimize_knn(vec, X_train, Y_train):
+    '''Train KNN Model'''
     print("KNN Classification")
     model = KNeighborsClassifier(n_neighbors=118, weights='uniform', n_jobs=-1)
 
@@ -129,6 +133,7 @@ def optimize_knn(vec, X_train, Y_train):
 
 
 def optimize_dt(vec, X_train, Y_train, seed):
+    '''Train Decision Tree Model'''
     print("Decision Tree Classification")
     model = DecisionTreeClassifier(
         splitter='best',
@@ -145,6 +150,7 @@ def optimize_dt(vec, X_train, Y_train, seed):
 
 
 def optimize_svm(vec, X_train, Y_train, seed):
+    '''Train SVM Model'''
     print("SVM classification")
     if vec is None:
         svm_ = svm.SVC(kernel='linear', C=1.14, random_state=seed)
@@ -157,6 +163,7 @@ def optimize_svm(vec, X_train, Y_train, seed):
 
 
 def custom_feature(row):
+    '''Use custom feature'''
     dic = {}
     dic['org_count'] = row['org_count']
     dic['sentence_count'] = row['sentence_count']
@@ -165,6 +172,7 @@ def custom_feature(row):
 
 
 def ensemble(vec, X_train, Y_train, seed):
+    '''Train Ensemble Model'''
     print("Ensemble of Naive Bayes, Random Forest and SVM")
 
     nb = Pipeline([('vec_cn', vec), ('cls', MultinomialNB())])
@@ -185,7 +193,8 @@ if __name__ == "__main__":
 
     """ Below code refactored for the format python LFD_assignment2.py -i <trainset> -ts <testset>.
         Normally, it is used with split_data function to experiment with different classifiers. """
-
+    
+    # Read from CSV
     train = pd.read_csv('./processed_data/processed_train.csv')
 
     if args.custom_test_set:
@@ -200,6 +209,7 @@ if __name__ == "__main__":
 
     X_test, Y_test = test['clean'], test['newspaper_name']
 
+    
     if args.create_custom_features:
         # Create custom features dictionary
         train_dic = [custom_feature(row) for index, row in train.iterrows()]
