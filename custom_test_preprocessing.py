@@ -108,7 +108,7 @@ def count_sentence(txt):
 	doc = nlp(txt)
 	return len([sent.text for sent in doc.sents])
 
-#Extract only Noun and Proper Noun
+# Extract only Noun and Proper Noun
 def extract_noun(body):
 	doc = nlp(body)
 	cleaned_doc = [token.lemma_ for token in doc if not token.is_stop and not token.is_punct and (token.pos_ == 'NOUN' or token.pos_ == 'PROPN')]
@@ -120,7 +120,7 @@ def spacy_pos(body):
 	cleaned_doc = [token.lemma_ + '_' + token.pos_ for token in doc if not token.is_stop and not token.is_punct]
 	return ' '.join(cleaned_doc)
 
-#Normalize the Custon Features
+# Normalize the Custon Features
 def normalize(df):
 	df['sentence_count'] /= df['sentence_count'].max()
 	df['gpe_count'] /= df['gpe_count'].max()
