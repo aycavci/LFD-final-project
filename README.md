@@ -1,4 +1,6 @@
-# LFD-final-project
+# Automated Newspaper Prediction from News Articles
+
+An automated system that takes articles as input and predicts the names of the corresponding newspapers using various ML and DL based approaches.
 
 ## To setup the repository:
 
@@ -40,7 +42,7 @@ classic_model.py takes the following arguments:
     -o -> Output file to which we write predictions for test set
     
 
-Example for running pre-trained SVM using TF-IDF on processed test set with seed=36, and output results to a file: python classic_model.py -svm_pretrained -t - o -s 36
+Example for running pretrained SVM using TF-IDF on processed test set with seed=36, and output results to a file: python classic_model.py -svm_pretrained -t - o -s 36
 
 #### Running deep_learning.py:
 
